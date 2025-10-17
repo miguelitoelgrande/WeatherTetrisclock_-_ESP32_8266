@@ -877,15 +877,19 @@ bool getWeather() {
   #ifdef VERBOSE_DEBUG  
     Serial.print(F("Connecting to weather server: "));
     Serial.println(host);
-  
-    int conerr;
-    conerr = client.connect(host, 443);
-    if (!conerr) {
+  #endif
+
+  int conerr;
+  conerr = client.connect(host, 443);
+  if (!conerr) {
+    #ifdef VERBOSE_DEBUG  
       Serial.println(F("Connection failed."));
       Serial.println(conerr);
-      return false;
-    }
+    #endif
+    return false;
+  }
 
+  #ifdef VERBOSE_DEBUG  
     Serial.print(F("Sending Request for URL: "));
     Serial.println(url);
   #endif
