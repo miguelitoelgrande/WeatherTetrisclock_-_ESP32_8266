@@ -36,14 +36,13 @@
 /*******************************************************************
     Tetris clock that fetches its time Using the EzTimeLibrary
 
-    For use with the ESP32 or TinyPICO
+    For use with the ESP8266 or ESP32
     MM: Display: 128*64   SSD_1306
  *                                                                 *
-    Written by Brian Lough
-    YouTube: https://www.youtube.com/brianlough
-    Tindie: https://www.tindie.com/stores/brianlough/
-    Twitter: https://twitter.com/witnessmenow
+    Inital version was based on code written by Brian Lough    
  *******************************************************************/
+
+//#define VERBOSE_DEBUG  // the blue LED blinks on TX. So I prefer less/only initial logging
 
 #if defined(ESP8266)
   #include <ESP8266WiFi.h>
@@ -215,11 +214,9 @@ void printBottomDateLine()
 
 
 // This method is for controlling the tetris library draw calls
-//void ICACHE_RAM_ATTR animationHandler()
 void animationHandler()
 {
   if (showWeatherScreen) return;   // dirty hack... just go back for original weathe screen...
-  //  Serial.println("enter animationHandler()");
   // Not clearing the display and redrawing it when you
   // dont need to improves how the refresh rate appears
   if (!finishedAnimating) {
@@ -227,11 +224,9 @@ void animationHandler()
     display.clearDisplay();
 
     if (displayIntro) {
-      //    Serial.println("drawText() call");
-      // MM: showed that lengthy text longer than 9? chars leads to strange behaviour
+          // MM: showed that lengthy text longer than 9? chars leads to strange behaviour
       // finishedAnimating = tetris.drawText(1, 21);
       finishedAnimating = tetris.drawText(1, 42);
-      //    Serial.println("drawText() return");
     } else {
 
       if (twelveHourFormat) {
@@ -306,7 +301,7 @@ void setMatrixTime() {
     // TODO TODO: replace myTZ functionality with equivalent in NTPclient...
   // AmPmString = myTZ.dateTime("A");
     if (lastDisplayedAmPm != AmPmString) {
-      Serial.println(AmPmString);
+      // Serial.println(AmPmString);
       lastDisplayedAmPm = AmPmString;
       // Second character is always "M"
       // so need to parse it out
@@ -327,8 +322,10 @@ void setMatrixTime() {
 
   // Only update Time if its different
   if (lastDisplayedTime != timeString) {  
-    Serial.print("setMatrixTime(): timeString: ");
-    Serial.println(timeString);
+    #ifdef VERBOSE_DEBUG  
+     Serial.print("setMatrixTime(): timeString: ");
+     Serial.println(timeString);
+    #endif
     lastDisplayedTime = timeString;
     tetris.setTime(timeString, forceRefresh);
     // Must set this to false so animation knows
@@ -523,11 +520,15 @@ void loop() {
 
       // Update weather every 15 minutes
       if (millis() - lastWeatherFetch > 900000UL || !weatherValid) {
-        Serial.println(F("Updating weather data..."));
+        #ifdef VERBOSE_DEBUG  
+           Serial.println(F("Updating weather data..."));
+        #endif
         weatherValid = getWeather();
         lastWeatherFetch = millis();
         if (weatherValid) {
-          Serial.println(F("Weather update successful."));
+          #ifdef VERBOSE_DEBUG  
+            Serial.println(F("Weather update successful."));
+          #endif  
         } else {
           Serial.println(F("Weather update failed or data invalid."));
         }
@@ -538,7 +539,7 @@ void loop() {
   // Draw the appropriate screen
   if (showWeatherScreen) {
      if (redrawScreen) { // should we actually draw (avoid flicker)
-        Serial.println(F("call drawWeatherScreen()"));
+        // Serial.println(F("call drawWeatherScreen()"));
         drawWeatherScreen();
         redrawScreen = false;
      }
@@ -567,12 +568,12 @@ void loop() {
         if (finishedAnimating) {
         /////////////
          if (redrawScreen) { // should we actually draw (avoid flicker)
-          Serial.println(F("call printBottomDateLine()"));
+          // Serial.println(F("call printBottomDateLine()"));
           printBottomDateLine();
           redrawScreen = false;
          }
         /////////////////////
-        Serial.println(F("call handleColonAfterAnimation()"));
+        // Serial.println(F("call handleColonAfterAnimation()"));
         handleColonAfterAnimation();
         }
         oneSecondLoopDue = now + 1000;
@@ -872,20 +873,22 @@ bool getWeather() {
   // String url = "https://wttr.in/" + city + "?lang=de&format=%25t|%25C|%25h|%25w|%25P";
   String url = "/" + city + "?lang=de&format=%25t|%25C|%25h|%25w|%25P";
 
-  Serial.print(F("Connecting to weather server: "));
-  Serial.println(host);
-
   // MM: extra debugging
-  int conerr;
-  conerr = client.connect(host, 443);
-  if (!conerr) {
-    Serial.println(F("Connection failed."));
-    Serial.println(conerr);
-    return false;
-  }
+  #ifdef VERBOSE_DEBUG  
+    Serial.print(F("Connecting to weather server: "));
+    Serial.println(host);
+  
+    int conerr;
+    conerr = client.connect(host, 443);
+    if (!conerr) {
+      Serial.println(F("Connection failed."));
+      Serial.println(conerr);
+      return false;
+    }
 
-  Serial.print(F("Sending Request for URL: "));
-  Serial.println(url);
+    Serial.print(F("Sending Request for URL: "));
+    Serial.println(url);
+  #endif
 
   // Send GET request
   client.print(String("GET ") + url + " HTTP/1.1\r\n" +
@@ -903,9 +906,11 @@ bool getWeather() {
   }
   client.stop();
 
-  Serial.println(F("---- RAW RESPONSE ----"));
-  Serial.println(response);
-  Serial.println(F("----------------------"));
+  #ifdef VERBOSE_DEBUG  
+    Serial.println(F("---- RAW RESPONSE ----"));
+    Serial.println(response);
+    Serial.println(F("----------------------"));
+  #endif
 
   // --- Extract line with weather data ---
   String result = "";
@@ -917,9 +922,11 @@ bool getWeather() {
     line.replace("\r", "");
     line.trim();
 
-    Serial.print("DEBUG LINE: >");
-    Serial.print(line);
-    Serial.println("<");
+    #ifdef VERBOSE_DEBUG  
+      Serial.print("DEBUG LINE: >");
+      Serial.print(line);
+      Serial.println("<");
+    #endif
 
     if (line.indexOf('|') != -1) {
       result = line;
@@ -942,8 +949,10 @@ bool getWeather() {
     }
   }
 
-  Serial.print(F("Weather raw response: "));
-  Serial.println(result);
+  #ifdef VERBOSE_DEBUG  
+    Serial.print(F("Weather raw response: "));
+    Serial.println(result);
+  #endif
 
   if (result.length() == 0) {
     Serial.println(F("No weather data found."));
@@ -1020,12 +1029,14 @@ bool getWeather() {
     weatherPress = String(pressRounded);
   }
 
-  Serial.println(F("Parsed weather data:"));
-  Serial.print(F("Temp=")); Serial.println(weatherTemp);
-  Serial.print(F("Cond=")); Serial.println(weatherCond);
-  Serial.print(F("Hum=")); Serial.println(weatherHum);
-  Serial.print(F("Wind(m/s)=")); Serial.println(weatherWind);
-  Serial.print(F("Pressure(mmHg)=")); Serial.println(weatherPress);
+  #ifdef VERBOSE_DEBUG  
+      Serial.println(F("Parsed weather data:"));
+      Serial.print(F("Temp=")); Serial.println(weatherTemp);
+      Serial.print(F("Cond=")); Serial.println(weatherCond);
+      Serial.print(F("Hum=")); Serial.println(weatherHum);
+      Serial.print(F("Wind(m/s)=")); Serial.println(weatherWind);
+      Serial.print(F("Pressure(mmHg)=")); Serial.println(weatherPress);
+  #endif
 
   // Validate critical fields
   if (weatherTemp == "" || weatherCond == "") {
